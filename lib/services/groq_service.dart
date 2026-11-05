@@ -27,6 +27,18 @@ class GroqReadingResult {
   final List<ReadingQuestion> questions;
 }
 
+/// Correction and feedback on one diary/composition entry.
+class GroqDiaryResult {
+  GroqDiaryResult({required this.corrected, required this.feedback});
+
+  /// Natural-Japanese correction of what the user wrote (identical to the
+  /// original if there was nothing to fix).
+  final String corrected;
+
+  /// Explanation of what was wrong / why, in Myanmar.
+  final String feedback;
+}
+
 /// Calls the Groq API (OpenAI-compatible) directly from the app for the AI
 /// features: auto-filling a new entry's fields, and generating JLPT reading
 /// passages.
@@ -122,7 +134,32 @@ class GroqService {
     }
   }
 
-  /// Shared request/response handling for both AI features: posts [prompt]
+  /// Corrects and gives feedback on one short Japanese composition the user
+  /// wrote — the "output" counterpart to [autoFill]'s vocabulary lookups.
+  static Future<GroqDiaryResult> reviewDiary(String text) async {
+    final prompt = '次の日本語の文章は、日本語学習者が書いたものです。'
+        '文章:「$text」\n'
+        '自然な日本語に添削してください（間違いがなければそのまま返すこと）。'
+        'また、どこをどう直したか、なぜそうした方がいいかを、学習者が分かるようミャンマー語で'
+        '優しく説明してください。'
+        '次のJSON形式だけを返してください。説明文は付けないこと。\n'
+        '{"corrected": "添削後の自然な日本語の文章", "feedback": "ミャンマー語でのフィードバック"}';
+
+    final content = await _complete(prompt: prompt, reasoningEffort: 'low');
+    final Map<String, dynamic> parsed;
+    try {
+      parsed = jsonDecode(content) as Map<String, dynamic>;
+    } catch (_) {
+      throw GroqServiceException('Groq からの応答を解析できませんでした。');
+    }
+
+    return GroqDiaryResult(
+      corrected: (parsed['corrected'] as String?)?.trim() ?? text,
+      feedback: (parsed['feedback'] as String?)?.trim() ?? '',
+    );
+  }
+
+  /// Shared request/response handling for all AI features: posts [prompt]
   /// as the sole user message and returns the assistant's raw JSON-string
   /// content. Throws [GroqServiceException] on any HTTP or shape failure
   /// (including a missing build-time key); callers still need to

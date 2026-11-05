@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 
 import '../theme/app_colors.dart';
+import 'diary_screen.dart';
 import 'flashcard_screen.dart';
 import 'home_screen.dart';
 import 'progress_screen.dart';
@@ -37,6 +38,10 @@ class RootTabs extends StatelessWidget {
             label: '読解',
           ),
           BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.pencil_outline),
+            label: '作文',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.chart_bar),
             label: 'Progress',
           ),
@@ -57,8 +62,10 @@ class RootTabs extends StatelessWidget {
           case 3:
             return CupertinoTabView(builder: (_) => const ReadingScreen());
           case 4:
-            return CupertinoTabView(builder: (_) => const ProgressScreen());
+            return CupertinoTabView(builder: (_) => const DiaryScreen());
           case 5:
+            return CupertinoTabView(builder: (_) => const ProgressScreen());
+          case 6:
           default:
             return CupertinoTabView(builder: (_) => const SettingsScreen());
         }

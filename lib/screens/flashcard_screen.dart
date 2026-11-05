@@ -4,6 +4,7 @@ import 'package:hive/hive.dart';
 import '../app_scope.dart';
 import '../models/entry.dart';
 import '../theme/app_colors.dart';
+import '../widgets/speak_button.dart';
 import '../widgets/type_segmented_control.dart';
 
 class FlashcardScreen extends StatefulWidget {
@@ -109,6 +110,9 @@ class _FlashcardState extends State<_Flashcard> {
   Widget build(BuildContext context) {
     final entry = widget.entry;
     final hasReading = entry.reading != null && entry.reading!.trim().isNotEmpty;
+    final speakText = entry.exampleSentence.trim().isNotEmpty
+        ? entry.exampleSentence
+        : entry.term;
 
     return GestureDetector(
       onTap: () => setState(() => _showBack = !_showBack),
@@ -134,52 +138,61 @@ class _FlashcardState extends State<_Flashcard> {
                   ),
                 ],
               ),
-              child: Center(
-                child: _showBack
-                    ? Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (hasReading)
-                            Text(
-                              entry.reading!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                color: AppColors.inkSecondary,
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: SpeakButton(text: _showBack ? speakText : entry.term),
+                  ),
+                  Center(
+                    child: _showBack
+                        ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (hasReading)
+                                Text(
+                                  entry.reading!,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    color: AppColors.inkSecondary,
+                                  ),
+                                ),
+                              if (hasReading) const SizedBox(height: 12),
+                              Text(
+                                entry.meaningMy,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.inkSecondary,
+                                ),
                               ),
-                            ),
-                          if (hasReading) const SizedBox(height: 12),
-                          Text(
-                            entry.meaningMy,
+                              if (entry.exampleSentence.trim().isNotEmpty) ...[
+                                const SizedBox(height: 20),
+                                Text(
+                                  entry.exampleSentence,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: AppColors.inkSecondary,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          )
+                        : Text(
+                            entry.term,
                             textAlign: TextAlign.center,
                             style: const TextStyle(
-                              fontSize: 22,
+                              fontSize: 34,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.inkSecondary,
+                              color: AppColors.inkPrimary,
                             ),
                           ),
-                          if (entry.exampleSentence.trim().isNotEmpty) ...[
-                            const SizedBox(height: 20),
-                            Text(
-                              entry.exampleSentence,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: AppColors.inkSecondary,
-                              ),
-                            ),
-                          ],
-                        ],
-                      )
-                    : Text(
-                        entry.term,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 34,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.inkPrimary,
-                        ),
-                      ),
+                  ),
+                ],
               ),
             ),
           ),

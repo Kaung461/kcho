@@ -6,6 +6,7 @@ import '../app_scope.dart';
 import '../services/quiz_service.dart';
 import '../services/sm2_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/speak_button.dart';
 
 const Duration _advanceDelay = Duration(milliseconds: 900);
 
@@ -192,22 +193,31 @@ class _QuestionView extends StatelessWidget {
             style: const TextStyle(color: AppColors.inkSecondary),
           ),
           const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
-            decoration: BoxDecoration(
-              color: AppColors.cardBackground,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.borderLine),
-            ),
-            child: Text(
-              question.entry.term,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.w600,
-                color: AppColors.inkPrimary,
+          Stack(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBackground,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.borderLine),
+                ),
+                child: Text(
+                  question.entry.term,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.inkPrimary,
+                  ),
+                ),
               ),
-            ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: SpeakButton(text: question.entry.term),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
           for (var i = 0; i < question.options.length; i++)

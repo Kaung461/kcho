@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 
 import '../models/reading_passage.dart';
 import '../theme/app_colors.dart';
+import '../widgets/speak_button.dart';
 
 /// Shows one [ReadingPassage]: the passage text, then each comprehension
 /// question with 4 tappable choices. Answers lock in immediately (like the
@@ -40,17 +41,26 @@ class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.borderLine),
-              ),
-              child: Text(
-                widget.passage.passage,
-                style: const TextStyle(fontSize: 17, height: 1.7, color: AppColors.inkPrimary),
-              ),
+            Stack(
+              children: [
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 44, 20),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBackground,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.borderLine),
+                  ),
+                  child: Text(
+                    widget.passage.passage,
+                    style: const TextStyle(fontSize: 17, height: 1.7, color: AppColors.inkPrimary),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: SpeakButton(text: widget.passage.passage),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             for (var i = 0; i < questions.length; i++) ...[
