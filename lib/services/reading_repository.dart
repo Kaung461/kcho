@@ -24,12 +24,14 @@ class ReadingRepository {
 
   Future<ReadingPassage> create({
     required String level,
+    required ReadingType type,
     required String passage,
     required List<ReadingQuestion> questions,
   }) async {
     final entry = ReadingPassage(
       id: _uuid.v4(),
       level: level,
+      type: type,
       passage: passage,
       questions: questions,
       createdAt: DateTime.now(),

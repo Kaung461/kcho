@@ -1,13 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 
 import '../models/reading_passage.dart';
 import '../theme/app_colors.dart';
+import '../widgets/highlighted_japanese_text.dart';
 import '../widgets/speak_button.dart';
 
-/// Shows one [ReadingPassage]: the passage text, then each comprehension
-/// question with 4 tappable choices. Answers lock in immediately (like the
-/// Quiz screen) with correct/wrong color feedback; a running score shows
-/// once every question has been answered.
+/// Shows one [ReadingPassage]: a question preview (to practice "read the
+/// questions first"), an exam-style countdown timer, the passage text with
+/// connector words highlighted, then each comprehension question with 4
+/// tappable choices. Answers lock in immediately with correct/wrong color
+/// feedback plus an explanation of every choice; once all questions are
+/// answered, a reading-speed (字/分) stat shows alongside the score.
 class ReadingDetailScreen extends StatefulWidget {
   const ReadingDetailScreen({required this.passage, super.key});
 
@@ -19,28 +24,100 @@ class ReadingDetailScreen extends StatefulWidget {
 
 class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
   final Map<int, int> _answers = {};
+  late final DateTime _startTime;
+  late int _remainingSeconds;
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTime = DateTime.now();
+    _remainingSeconds = widget.passage.type.timerMinutes * 60;
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_remainingSeconds <= 0) {
+        _ticker?.cancel();
+        return;
+      }
+      setState(() => _remainingSeconds--);
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
 
   void _select(int questionIndex, int optionIndex) {
     if (_answers.containsKey(questionIndex)) return;
     setState(() => _answers[questionIndex] = optionIndex);
   }
 
+  String _formatTimer(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final questions = widget.passage.questions;
     final answeredCount = _answers.length;
+    final allAnswered = answeredCount == questions.length && questions.isNotEmpty;
     final correctCount =
         _answers.entries.where((e) => e.value == questions[e.key].correctIndex).length;
+    final timeUp = _remainingSeconds <= 0;
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         transitionBetweenRoutes: false,
-        middle: Text('読解 — ${widget.passage.level}'),
+        middle: Text('読解 — ${widget.passage.level}・${widget.passage.type.label}'),
+        trailing: Text(
+          timeUp ? '⏰ 時間切れ' : _formatTimer(_remainingSeconds),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: timeUp ? AppColors.errorRed : AppColors.inkSecondary,
+          ),
+        ),
       ),
       child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            if (questions.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.paperBackground,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.borderLine),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '先に設問を確認してから、本文を読みましょう',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.inkSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    for (var i = 0; i < questions.length; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Q${i + 1}. ${questions[i].question}',
+                          style: const TextStyle(fontSize: 14, color: AppColors.inkPrimary),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             Stack(
               children: [
                 Container(
@@ -50,10 +127,7 @@ class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: AppColors.borderLine),
                   ),
-                  child: Text(
-                    widget.passage.passage,
-                    style: const TextStyle(fontSize: 17, height: 1.7, color: AppColors.inkPrimary),
-                  ),
+                  child: HighlightedJapaneseText(text: widget.passage.passage),
                 ),
                 Positioned(
                   top: 12,
@@ -72,16 +146,25 @@ class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
               ),
               const SizedBox(height: 16),
             ],
-            if (answeredCount == questions.length && questions.isNotEmpty) ...[
+            if (allAnswered) ...[
               const SizedBox(height: 8),
               Center(
-                child: Text(
-                  '結果: $correctCount / ${questions.length}',
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.hankoRed,
-                  ),
+                child: Column(
+                  children: [
+                    Text(
+                      '結果: $correctCount / ${questions.length}',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.hankoRed,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '読む速さ: ${_charsPerMinute()}字/分',
+                      style: const TextStyle(fontSize: 14, color: AppColors.inkSecondary),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -89,6 +172,12 @@ class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
         ),
       ),
     );
+  }
+
+  int _charsPerMinute() {
+    final elapsedMinutes = DateTime.now().difference(_startTime).inSeconds / 60;
+    if (elapsedMinutes <= 0) return widget.passage.passage.length;
+    return (widget.passage.passage.length / elapsedMinutes).round();
   }
 }
 
@@ -153,6 +242,20 @@ class _QuestionCard extends StatelessWidget {
                   style: const TextStyle(fontSize: 15, color: AppColors.inkPrimary),
                 ),
               ),
+            ),
+          ),
+        if (_answered && question.explanation.trim().isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.paperBackground,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.borderLine),
+            ),
+            child: Text(
+              question.explanation,
+              style: const TextStyle(fontSize: 13, color: AppColors.inkSecondary, height: 1.5),
             ),
           ),
       ],

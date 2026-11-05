@@ -110,9 +110,13 @@ class GroqService {
         '${type.promptInstruction}'
         '$levelの学習者が読める語彙・文法だけを使うこと。'
         '各設問に4つの選択肢と、正解のインデックス（0始まり）を付けること。'
+        'さらに各設問に、正解の理由だけでなく、残り3つの不正解の選択肢がそれぞれなぜ間違い・'
+        'ひっかけなのかも含めた解説を、学習者が分かるようミャンマー語で書くこと'
+        '（例:「選択肢2は、本文では『時々』と書かれているのに『いつも』となっているため不正解です」）。'
         '次のJSON形式だけを返してください。説明文は付けないこと。\n'
         '{"passage": "日本語の文章", "questions": ['
-        '{"question": "設問文", "options": ["選択肢1","選択肢2","選択肢3","選択肢4"], "correctIndex": 0}'
+        '{"question": "設問文", "options": ["選択肢1","選択肢2","選択肢3","選択肢4"], "correctIndex": 0, '
+        '"explanation": "ミャンマー語での解説（正解の理由＋他の選択肢がなぜ間違いか）"}'
         ']}';
 
     final content = await _complete(prompt: prompt, reasoningEffort: 'low');

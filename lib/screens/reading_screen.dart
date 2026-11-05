@@ -29,6 +29,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
       final result = await GroqService.generateReadingPassage(level: _level, type: _type);
       final passage = await repo.create(
         level: _level,
+        type: _type,
         passage: result.passage,
         questions: result.questions,
       );
@@ -198,7 +199,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
                           : passage.passage;
                       return CupertinoListTile(
                         title: Text(
-                          '[${passage.level}] $preview',
+                          '[${passage.level}・${passage.type.label}] $preview',
                           style: const TextStyle(color: AppColors.inkPrimary),
                         ),
                         trailing: const CupertinoListTileChevron(),
