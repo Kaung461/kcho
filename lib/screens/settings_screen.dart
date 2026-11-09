@@ -12,6 +12,23 @@ import '../theme/app_colors.dart';
 
 const String _appVersion = '1.0.0';
 
+/// Shares the user's entries as JSON. Extracted so the "…" menu's
+/// "データをエクスポート" item can trigger it without opening Settings.
+Future<void> exportEntriesJson(BuildContext context) async {
+  final repo = AppScope.of(context);
+  final json = const JsonEncoder.withIndent('  ').convert(
+    repo.all().map((e) => e.toJson()).toList(),
+  );
+  final renderBox = context.findRenderObject() as RenderBox?;
+  await Share.share(
+    json,
+    subject: 'K帳 — エクスポート',
+    sharePositionOrigin: renderBox != null
+        ? renderBox.localToGlobal(Offset.zero) & renderBox.size
+        : null,
+  );
+}
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -22,7 +39,9 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _settingsStore = SettingsStore();
   final _nameController = TextEditingController();
+  final _goalController = TextEditingController();
   Timer? _nameSaveTimer;
+  Timer? _goalSaveTimer;
 
   bool _loading = true;
   String _displayName = '';
@@ -40,6 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final name = await _settingsStore.getDisplayName();
     final enabled = await _settingsStore.getReminderEnabled();
     final (hour, minute) = await _settingsStore.getReminderTime();
+    final goal = await _settingsStore.getGoalWordCount();
     if (!mounted) return;
     setState(() {
       _displayName = name;
@@ -47,6 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _reminderEnabled = enabled;
       _reminderHour = hour;
       _reminderMinute = minute;
+      _goalController.text = '$goal';
       _loading = false;
     });
   }
@@ -54,7 +75,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _nameSaveTimer?.cancel();
+    _goalSaveTimer?.cancel();
     _nameController.dispose();
+    _goalController.dispose();
     super.dispose();
   }
 
@@ -63,6 +86,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _nameSaveTimer?.cancel();
     _nameSaveTimer = Timer(const Duration(milliseconds: 500), () {
       _settingsStore.setDisplayName(value.trim());
+    });
+  }
+
+  void _onGoalChanged(String value) {
+    final parsed = int.tryParse(value.trim());
+    if (parsed == null || parsed <= 0) return;
+    _goalSaveTimer?.cancel();
+    _goalSaveTimer = Timer(const Duration(milliseconds: 500), () {
+      _settingsStore.setGoalWordCount(parsed);
     });
   }
 
@@ -116,20 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _exportData() async {
-    final repo = AppScope.of(context);
-    final json = const JsonEncoder.withIndent('  ').convert(
-      repo.all().map((e) => e.toJson()).toList(),
-    );
-    final renderBox = context.findRenderObject() as RenderBox?;
-    await Share.share(
-      json,
-      subject: 'K帳 — エクスポート',
-      sharePositionOrigin: renderBox != null
-          ? renderBox.localToGlobal(Offset.zero) & renderBox.size
-          : null,
-    );
-  }
+  Future<void> _exportData() => exportEntriesJson(context);
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +218,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onDateTimeChanged: _onTimeChanged,
                           ),
                         ),
+                    ],
+                  ),
+                  _SettingsSection(
+                    header: '目標',
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                '目標語数',
+                                style: TextStyle(color: AppColors.inkPrimary),
+                              ),
+                            ),
+                            SizedBox(
+                              width: 80,
+                              child: CupertinoTextField(
+                                controller: _goalController,
+                                onChanged: _onGoalChanged,
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.right,
+                                decoration: const BoxDecoration(),
+                                style: const TextStyle(color: AppColors.inkPrimary, fontSize: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                   _SettingsSection(

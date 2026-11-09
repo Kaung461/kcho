@@ -5,6 +5,7 @@ import '../app_scope.dart';
 import '../models/diary_entry.dart';
 import '../services/groq_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/more_menu_button.dart';
 
 /// "Mini diary" screen: write a short Japanese sentence, get it corrected
 /// and explained by AI, and review past entries. The output-practice
@@ -72,16 +73,16 @@ class _DiaryScreenState extends State<DiaryScreen> {
       navigationBar: const CupertinoNavigationBar(
         transitionBetweenRoutes: false,
         middle: Text('作文'),
+        trailing: MoreMenuButton(),
       ),
       child: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  CupertinoTextField(
+            Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: CupertinoTextField(
                     controller: _controller,
                     placeholder: '今日のことを日本語で1〜3行、書いてみましょう。',
                     minLines: 2,
@@ -95,50 +96,92 @@ class _DiaryScreenState extends State<DiaryScreen> {
                       border: Border.all(color: AppColors.borderLine),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  CupertinoButton.filled(
-                    onPressed: _submitting ? null : _submit,
-                    child: _submitting
-                        ? const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CupertinoActivityIndicator(color: CupertinoColors.white, radius: 8),
-                              SizedBox(width: 8),
-                              Text('添削中…'),
-                            ],
-                          )
-                        : const Text('AIに添削してもらう'),
+                ),
+                Expanded(
+                  child: ValueListenableBuilder<Box<DiaryEntry>>(
+                    valueListenable: repo.listenable(),
+                    builder: (context, _, __) {
+                      final entries = repo.all();
+                      if (entries.isEmpty) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Text(
+                              'まだ書いた文章がありません。\n上に日本語で何か書いてみましょう。',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppColors.inkSecondary, fontSize: 15),
+                            ),
+                          ),
+                        );
+                      }
+                      return ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                        itemCount: entries.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) => _DiaryCard(entry: entries[index]),
+                      );
+                    },
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Expanded(
-              child: ValueListenableBuilder<Box<DiaryEntry>>(
-                valueListenable: repo.listenable(),
-                builder: (context, _, __) {
-                  final entries = repo.all();
-                  if (entries.isEmpty) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Text(
-                          'まだ書いた文章がありません。\n上に日本語で何か書いてみましょう。',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: AppColors.inkSecondary, fontSize: 15),
-                        ),
-                      ),
-                    );
-                  }
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    itemCount: entries.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) => _DiaryCard(entry: entries[index]),
-                  );
-                },
-              ),
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: _SubmitPill(submitting: _submitting, onPressed: _submitting ? null : _submit),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Floating pill that replaces the old inline "AIに添削してもらう" button —
+/// always reachable at thumb height instead of scrolling away with the
+/// text field.
+class _SubmitPill extends StatelessWidget {
+  const _SubmitPill({required this.submitting, required this.onPressed});
+
+  final bool submitting;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.inkPrimary.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: CupertinoButton(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        color: AppColors.hankoRed,
+        disabledColor: AppColors.hankoRed.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(999),
+        onPressed: onPressed,
+        child: DefaultTextStyle.merge(
+          style: const TextStyle(
+            color: CupertinoColors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+          child: submitting
+              ? const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CupertinoActivityIndicator(color: CupertinoColors.white, radius: 8),
+                    SizedBox(width: 8),
+                    Text('添削中…'),
+                  ],
+                )
+              : const Text('AIに添削してもらう'),
         ),
       ),
     );

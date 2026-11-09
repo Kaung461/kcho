@@ -10,16 +10,18 @@ import '../widgets/speak_button.dart';
 
 const Duration _advanceDelay = Duration(milliseconds: 900);
 
-class QuizScreen extends StatefulWidget {
-  const QuizScreen({super.key});
+/// Quiz body — embedded inside [ReviewScreen] alongside [FlashcardView].
+/// No Scaffold/nav bar of its own.
+class QuizView extends StatefulWidget {
+  const QuizView({super.key});
 
   @override
-  State<QuizScreen> createState() => _QuizScreenState();
+  State<QuizView> createState() => _QuizViewState();
 }
 
 enum _Phase { idle, running, done }
 
-class _QuizScreenState extends State<QuizScreen> {
+class _QuizViewState extends State<QuizView> {
   final Random _rng = Random();
 
   _Phase _phase = _Phase.idle;
@@ -63,6 +65,7 @@ class _QuizScreenState extends State<QuizScreen> {
   Future<void> _answer(int index) async {
     if (_answered) return;
     final repo = AppScope.of(context);
+    final studyLog = AppScope.studyLogOf(context);
     final question = _questions[_current];
     final correct = index == question.correctIndex;
 
@@ -71,6 +74,7 @@ class _QuizScreenState extends State<QuizScreen> {
     question.entry.recordAnswer(correct: correct);
     Sm2Service.review(question.entry, correct: correct);
     await repo.save(question.entry);
+    await studyLog.recordReview();
 
     setState(() {
       _selectedIndex = index;
@@ -99,31 +103,23 @@ class _QuizScreenState extends State<QuizScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        transitionBetweenRoutes: false,
-        middle: Text('クイズ'),
-      ),
-      child: SafeArea(
-        child: switch (_phase) {
-          _Phase.idle => _IdleView(onStart: _start),
-          _Phase.running => _QuestionView(
-              question: _questions[_current],
-              index: _current,
-              total: _questions.length,
-              streak: _streak,
-              selectedIndex: _selectedIndex,
-              answered: _answered,
-              onSelect: _answer,
-            ),
-          _Phase.done => _SummaryView(
-              score: _score,
-              total: _questions.length,
-              onRetry: _start,
-            ),
-        },
-      ),
-    );
+    return switch (_phase) {
+      _Phase.idle => _IdleView(onStart: _start),
+      _Phase.running => _QuestionView(
+          question: _questions[_current],
+          index: _current,
+          total: _questions.length,
+          streak: _streak,
+          selectedIndex: _selectedIndex,
+          answered: _answered,
+          onSelect: _answer,
+        ),
+      _Phase.done => _SummaryView(
+          score: _score,
+          total: _questions.length,
+          onRetry: _start,
+        ),
+    };
   }
 }
 
@@ -192,8 +188,8 @@ class _QuestionView extends StatelessWidget {
 
   Color _backgroundFor(int i) {
     if (!answered) return AppColors.cardBackground;
-    if (i == question.correctIndex) return AppColors.successGreen.withValues(alpha: 0.25);
-    if (i == selectedIndex) return AppColors.errorRed.withValues(alpha: 0.25);
+    if (i == question.correctIndex) return AppColors.successGreen.withValues(alpha: 0.35);
+    if (i == selectedIndex) return AppColors.errorRed.withValues(alpha: 0.35);
     return AppColors.cardBackground;
   }
 
@@ -274,11 +270,14 @@ class _QuestionView extends StatelessWidget {
                 onTap: () => onSelect(i),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                   decoration: BoxDecoration(
                     color: _backgroundFor(i),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _borderFor(i), width: answered && i == selectedIndex ? 2 : 1),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: _borderFor(i),
+                      width: answered && (i == selectedIndex || i == question.correctIndex) ? 2 : 1,
+                    ),
                     boxShadow: answered
                         ? null
                         : [

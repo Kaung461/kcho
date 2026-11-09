@@ -8,8 +8,11 @@ class SettingsStore {
   static const _keyReminderHour = 'reminder_hour';
   static const _keyReminderMinute = 'reminder_minute';
 
+  static const _keyGoalWordCount = 'goal_word_count';
+
   static const int defaultReminderHour = 20;
   static const int defaultReminderMinute = 0;
+  static const int defaultGoalWordCount = 300;
 
   Future<String> getDisplayName() async {
     final prefs = await SharedPreferences.getInstance();
@@ -43,5 +46,16 @@ class SettingsStore {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_keyReminderHour, hour);
     await prefs.setInt(_keyReminderMinute, minute);
+  }
+
+  /// Target word count shown as the "目標の進捗" bar on the Progress screen.
+  Future<int> getGoalWordCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_keyGoalWordCount) ?? defaultGoalWordCount;
+  }
+
+  Future<void> setGoalWordCount(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keyGoalWordCount, value);
   }
 }

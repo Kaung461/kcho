@@ -20,11 +20,6 @@ jobs:
         with:
           channel: stable
 
-      - name: Generate web platform files
-        # ios/android/macos/web are gitignored (regenerated locally with
-        # `flutter create .`), so recreate the web/ scaffold here too.
-        run: flutter create --platforms=web .
-
       - name: Install dependencies
         run: flutter pub get
 

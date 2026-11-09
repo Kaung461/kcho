@@ -2,14 +2,15 @@ import 'package:flutter/cupertino.dart';
 
 import '../theme/app_colors.dart';
 import 'diary_screen.dart';
-import 'flashcard_screen.dart';
 import 'home_screen.dart';
 import 'progress_screen.dart';
-import 'quiz_screen.dart';
-import 'reading_screen.dart';
-import 'settings_screen.dart';
+import 'review_screen.dart';
 
-/// Bottom tab bar that hosts the main sections of the app.
+/// Bottom tab bar that hosts the main sections of the app. Settings moved
+/// off the tab bar into the "…" menu on every screen; Flashcards and Quiz
+/// were merged into the 復習 tab (see [ReviewScreen]). 読解 isn't a tab —
+/// it's reached from Home's shortcut tile, since it's just one screen with
+/// no sub-navigation of its own.
 class RootTabs extends StatelessWidget {
   const RootTabs({super.key});
 
@@ -19,23 +20,15 @@ class RootTabs extends StatelessWidget {
       tabBar: CupertinoTabBar(
         activeColor: AppColors.hankoRed,
         inactiveColor: AppColors.inkSecondary,
-        backgroundColor: AppColors.cardBackground,
+        backgroundColor: AppColors.cardBackground.withValues(alpha: 0.9),
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.list_bullet),
-            label: 'Home',
+            icon: Icon(CupertinoIcons.house),
+            label: 'ホーム',
           ),
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.rectangle_stack),
-            label: 'Flashcards',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.checkmark_circle),
-            label: 'Quiz',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.doc_text_search),
-            label: '読解',
+            label: '復習',
           ),
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.pencil_outline),
@@ -43,11 +36,7 @@ class RootTabs extends StatelessWidget {
           ),
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.chart_bar),
-            label: 'Progress',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.settings),
-            label: 'Settings',
+            label: '進捗',
           ),
         ],
       ),
@@ -56,18 +45,12 @@ class RootTabs extends StatelessWidget {
           case 0:
             return CupertinoTabView(builder: (_) => const HomeScreen());
           case 1:
-            return CupertinoTabView(builder: (_) => const FlashcardScreen());
+            return CupertinoTabView(builder: (_) => const ReviewScreen());
           case 2:
-            return CupertinoTabView(builder: (_) => const QuizScreen());
-          case 3:
-            return CupertinoTabView(builder: (_) => const ReadingScreen());
-          case 4:
             return CupertinoTabView(builder: (_) => const DiaryScreen());
-          case 5:
-            return CupertinoTabView(builder: (_) => const ProgressScreen());
-          case 6:
+          case 3:
           default:
-            return CupertinoTabView(builder: (_) => const SettingsScreen());
+            return CupertinoTabView(builder: (_) => const ProgressScreen());
         }
       },
     );

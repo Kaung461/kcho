@@ -3,20 +3,27 @@ import 'package:hive/hive.dart';
 
 import '../app_scope.dart';
 import '../models/reading_passage.dart';
+import '../screens/reading_detail_screen.dart';
 import '../services/groq_service.dart';
 import '../theme/app_colors.dart';
-import 'reading_detail_screen.dart';
 
 const List<String> _levels = ['N5', 'N4', 'N3', 'N2', 'N1'];
 
-class ReadingScreen extends StatefulWidget {
-  const ReadingScreen({super.key});
+/// 読解 content, embedded inline on Home (behind the 読解 shortcut tile)
+/// instead of pushed as its own screen — so switching to it behaves the
+/// same as switching to 単語/文法/苦手: the list below the shortcut tiles
+/// just changes, nothing navigates away.
+///
+/// Returns itself as a [SliverMainAxisGroup] so it can sit directly inside
+/// Home's [CustomScrollView] alongside the entry list it replaces.
+class ReadingHomeSection extends StatefulWidget {
+  const ReadingHomeSection({super.key});
 
   @override
-  State<ReadingScreen> createState() => _ReadingScreenState();
+  State<ReadingHomeSection> createState() => _ReadingHomeSectionState();
 }
 
-class _ReadingScreenState extends State<ReadingScreen> {
+class _ReadingHomeSectionState extends State<ReadingHomeSection> {
   String _level = 'N5';
   ReadingType _type = ReadingType.shortPassage;
   bool _generating = false;
@@ -132,72 +139,70 @@ class _ReadingScreenState extends State<ReadingScreen> {
   Widget build(BuildContext context) {
     final repo = AppScope.readingOf(context);
 
-    return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        transitionBetweenRoutes: false,
-        middle: Text('読解'),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(children: _levels.map(_levelChip).toList()),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Wrap(children: ReadingType.values.map(_typeChip).toList()),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: CupertinoButton.filled(
-                  onPressed: _generating ? null : _generate,
-                  child: _generating
-                      ? const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CupertinoActivityIndicator(color: CupertinoColors.white, radius: 8),
-                            SizedBox(width: 8),
-                            Text('生成中…'),
-                          ],
-                        )
-                      : const Text('新しい読解問題を生成'),
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Row(children: _levels.map(_levelChip).toList()),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Wrap(children: ReadingType.values.map(_typeChip).toList()),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: CupertinoButton.filled(
+                    onPressed: _generating ? null : _generate,
+                    child: _generating
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CupertinoActivityIndicator(color: CupertinoColors.white, radius: 8),
+                              SizedBox(width: 8),
+                              Text('生成中…'),
+                            ],
+                          )
+                        : const Text('新しい読解問題を生成'),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: ValueListenableBuilder<Box<ReadingPassage>>(
-                valueListenable: repo.listenable(),
-                builder: (context, _, __) {
-                  final passages = repo.all();
-                  if (passages.isEmpty) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Text(
-                          'まだ読解問題がありません。\n上のボタンから生成してください。',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: AppColors.inkSecondary, fontSize: 15),
-                        ),
-                      ),
-                    );
-                  }
-                  return ListView.separated(
-                    itemCount: passages.length,
-                    separatorBuilder: (_, __) => Container(
-                      margin: const EdgeInsets.only(left: 16),
-                      height: 0.5,
-                      color: AppColors.borderLine,
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+        ValueListenableBuilder<Box<ReadingPassage>>(
+          valueListenable: repo.listenable(),
+          builder: (context, _, __) {
+            final passages = repo.all();
+            if (passages.isEmpty) {
+              return const SliverToBoxAdapter(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text(
+                      'まだ読解問題がありません。\n上のボタンから生成してください。',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.inkSecondary, fontSize: 15),
                     ),
-                    itemBuilder: (context, index) {
-                      final passage = passages[index];
-                      final preview = passage.passage.length > 28
-                          ? '${passage.passage.substring(0, 28)}…'
-                          : passage.passage;
-                      return CupertinoListTile(
+                  ),
+                ),
+              );
+            }
+            return SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final passage = passages[index];
+                  final preview = passage.passage.length > 28
+                      ? '${passage.passage.substring(0, 28)}…'
+                      : passage.passage;
+                  return Column(
+                    children: [
+                      CupertinoListTile(
                         title: Text(
                           '[${passage.level}・${passage.type.label}] $preview',
                           style: const TextStyle(color: AppColors.inkPrimary),
@@ -208,15 +213,22 @@ class _ReadingScreenState extends State<ReadingScreen> {
                             builder: (_) => ReadingDetailScreen(passage: passage),
                           ),
                         ),
-                      );
-                    },
+                      ),
+                      if (index != passages.length - 1)
+                        Container(
+                          margin: const EdgeInsets.only(left: 16),
+                          height: 0.5,
+                          color: AppColors.borderLine,
+                        ),
+                    ],
                   );
                 },
+                childCount: passages.length,
               ),
-            ),
-          ],
+            );
+          },
         ),
-      ),
+      ],
     );
   }
 }

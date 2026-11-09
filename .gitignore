@@ -24,4 +24,5 @@ build/
 /macos/
 /linux/
 /windows/
-/web/
+# web/ IS committed — it carries real customizations (PWA meta tags,
+# theme-color, manifest branding) that CI must not regenerate away.

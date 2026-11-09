@@ -7,14 +7,18 @@ import '../theme/app_colors.dart';
 import '../widgets/speak_button.dart';
 import '../widgets/type_segmented_control.dart';
 
-class FlashcardScreen extends StatefulWidget {
-  const FlashcardScreen({super.key});
+/// Flashcard body — embedded inside [ReviewScreen] alongside [QuizView].
+/// No Scaffold/nav bar of its own; the 単語/文法 filter lives in its own
+/// header row since the parent nav bar's middle is taken by the
+/// カード/クイズ switch.
+class FlashcardView extends StatefulWidget {
+  const FlashcardView({super.key});
 
   @override
-  State<FlashcardScreen> createState() => _FlashcardScreenState();
+  State<FlashcardView> createState() => _FlashcardViewState();
 }
 
-class _FlashcardScreenState extends State<FlashcardScreen> {
+class _FlashcardViewState extends State<FlashcardView> {
   EntryType _type = EntryType.tango;
   final PageController _pageController = PageController();
   int _index = 0;
@@ -37,53 +41,55 @@ class _FlashcardScreenState extends State<FlashcardScreen> {
   Widget build(BuildContext context) {
     final repo = AppScope.of(context);
 
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        transitionBetweenRoutes: false,
-        middle: SizedBox(
-          width: 220,
-          child: TypeSegmentedControl(value: _type, onChanged: _changeType),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: SizedBox(
+            width: 220,
+            child: TypeSegmentedControl(value: _type, onChanged: _changeType),
+          ),
         ),
-      ),
-      child: SafeArea(
-        child: ValueListenableBuilder<Box<Entry>>(
-          valueListenable: repo.listenable(),
-          builder: (context, _, __) {
-            final entries = repo.byType(_type);
-            if (entries.isEmpty) {
-              return const Center(
-                child: Text(
-                  'カードがありません。',
-                  style: TextStyle(color: AppColors.inkSecondary),
-                ),
-              );
-            }
-            final safeIndex = _index.clamp(0, entries.length - 1);
-            return Column(
-              children: [
-                Expanded(
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: entries.length,
-                    onPageChanged: (i) => setState(() => _index = i),
-                    itemBuilder: (context, i) => _Flashcard(
-                      key: ValueKey(entries[i].id),
-                      entry: entries[i],
+        Expanded(
+          child: ValueListenableBuilder<Box<Entry>>(
+            valueListenable: repo.listenable(),
+            builder: (context, _, __) {
+              final entries = repo.byType(_type);
+              if (entries.isEmpty) {
+                return const Center(
+                  child: Text(
+                    'カードがありません。',
+                    style: TextStyle(color: AppColors.inkSecondary),
+                  ),
+                );
+              }
+              final safeIndex = _index.clamp(0, entries.length - 1);
+              return Column(
+                children: [
+                  Expanded(
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: entries.length,
+                      onPageChanged: (i) => setState(() => _index = i),
+                      itemBuilder: (context, i) => _Flashcard(
+                        key: ValueKey(entries[i].id),
+                        entry: entries[i],
+                      ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16, top: 4),
-                  child: Text(
-                    '${safeIndex + 1} / ${entries.length}',
-                    style: const TextStyle(color: AppColors.inkSecondary),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16, top: 4),
+                    child: Text(
+                      '${safeIndex + 1} / ${entries.length}',
+                      style: const TextStyle(color: AppColors.inkSecondary),
+                    ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
-      ),
+      ],
     );
   }
 }

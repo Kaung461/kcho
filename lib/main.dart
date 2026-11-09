@@ -14,6 +14,7 @@ import 'services/auth_service.dart';
 import 'services/diary_repository.dart';
 import 'services/entry_repository.dart';
 import 'services/reading_repository.dart';
+import 'services/study_log_service.dart';
 import 'theme/app_colors.dart';
 
 Future<void> main() async {
@@ -28,17 +29,20 @@ Future<void> main() async {
   final box = await Hive.openBox<Entry>(EntryRepository.boxName);
   final readingBox = await Hive.openBox<ReadingPassage>(ReadingRepository.boxName);
   final diaryBox = await Hive.openBox<DiaryEntry>(DiaryRepository.boxName);
+  final studyLogBox = await Hive.openBox<dynamic>(StudyLogService.boxName);
 
   final repository = EntryRepository(box);
   await repository.seedIfEmpty();
   final readingRepository = ReadingRepository(readingBox);
   final diaryRepository = DiaryRepository(diaryBox);
+  final studyLog = StudyLogService(studyLogBox);
 
   runApp(
     KchoApp(
       repository: repository,
       readingRepository: readingRepository,
       diaryRepository: diaryRepository,
+      studyLog: studyLog,
     ),
   );
 }
@@ -48,12 +52,14 @@ class KchoApp extends StatelessWidget {
     required this.repository,
     required this.readingRepository,
     required this.diaryRepository,
+    required this.studyLog,
     super.key,
   });
 
   final EntryRepository repository;
   final ReadingRepository readingRepository;
   final DiaryRepository diaryRepository;
+  final StudyLogService studyLog;
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +67,7 @@ class KchoApp extends StatelessWidget {
       repository: repository,
       readingRepository: readingRepository,
       diaryRepository: diaryRepository,
+      studyLog: studyLog,
       child: const CupertinoApp(
         title: 'K帳',
         debugShowCheckedModeBanner: false,
