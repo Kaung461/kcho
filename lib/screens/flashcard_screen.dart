@@ -117,7 +117,7 @@ class _FlashcardState extends State<_Flashcard> {
     return GestureDetector(
       onTap: () => setState(() => _showBack = !_showBack),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         child: Center(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
@@ -125,7 +125,7 @@ class _FlashcardState extends State<_Flashcard> {
               key: ValueKey(_showBack),
               width: double.infinity,
               constraints: const BoxConstraints(minHeight: 260),
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: AppColors.cardBackground,
                 borderRadius: BorderRadius.circular(16),
@@ -151,31 +151,42 @@ class _FlashcardState extends State<_Flashcard> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (hasReading)
-                                Text(
-                                  entry.reading!,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    color: AppColors.inkSecondary,
+                                Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.paperBackground,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    entry.reading!,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: AppColors.inkSecondary,
+                                    ),
                                   ),
                                 ),
-                              if (hasReading) const SizedBox(height: 12),
+                              if (hasReading) const SizedBox(height: 16),
                               Text(
                                 entry.meaningMy,
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.inkSecondary,
+                                  fontSize: 23,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.inkPrimary,
                                 ),
                               ),
                               if (entry.exampleSentence.trim().isNotEmpty) ...[
-                                const SizedBox(height: 20),
+                                const SizedBox(height: 18),
+                                Container(width: 40, height: 1, color: AppColors.borderLine),
+                                const SizedBox(height: 18),
                                 Text(
                                   entry.exampleSentence,
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
                                     fontSize: 16,
+                                    fontStyle: FontStyle.italic,
                                     color: AppColors.inkSecondary,
                                   ),
                                 ),

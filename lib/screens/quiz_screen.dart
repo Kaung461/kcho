@@ -26,6 +26,7 @@ class _QuizScreenState extends State<QuizScreen> {
   List<QuizQuestion> _questions = [];
   int _current = 0;
   int _score = 0;
+  int _streak = 0;
   int? _selectedIndex;
   bool _answered = false;
 
@@ -52,6 +53,7 @@ class _QuizScreenState extends State<QuizScreen> {
       _questions = QuizService.buildSession(repo, random: _rng);
       _current = 0;
       _score = 0;
+      _streak = 0;
       _selectedIndex = null;
       _answered = false;
       _phase = _Phase.running;
@@ -73,7 +75,12 @@ class _QuizScreenState extends State<QuizScreen> {
     setState(() {
       _selectedIndex = index;
       _answered = true;
-      if (correct) _score++;
+      if (correct) {
+        _score++;
+        _streak++;
+      } else {
+        _streak = 0;
+      }
     });
 
     await Future<void>.delayed(_advanceDelay);
@@ -104,6 +111,7 @@ class _QuizScreenState extends State<QuizScreen> {
               question: _questions[_current],
               index: _current,
               total: _questions.length,
+              streak: _streak,
               selectedIndex: _selectedIndex,
               answered: _answered,
               onSelect: _answer,
@@ -134,6 +142,20 @@ class _IdleView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Container(
+            width: 96,
+            height: 96,
+            decoration: BoxDecoration(
+              color: AppColors.hankoRed.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              CupertinoIcons.checkmark_seal,
+              color: AppColors.hankoRed,
+              size: 44,
+            ),
+          ),
+          const SizedBox(height: 20),
           Text(
             '1回のセッションで最大 $sessionCount 問',
             style: const TextStyle(color: AppColors.inkSecondary),
@@ -154,6 +176,7 @@ class _QuestionView extends StatelessWidget {
     required this.question,
     required this.index,
     required this.total,
+    required this.streak,
     required this.selectedIndex,
     required this.answered,
     required this.onSelect,
@@ -162,6 +185,7 @@ class _QuestionView extends StatelessWidget {
   final QuizQuestion question;
   final int index;
   final int total;
+  final int streak;
   final int? selectedIndex;
   final bool answered;
   final ValueChanged<int> onSelect;
@@ -187,11 +211,34 @@ class _QuestionView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (streak >= 2) ...[
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.hankoRed.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: AppColors.hankoRed.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  '$streak問連続正解中！',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.hankoRed,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           Text(
-            '${index + 1} / $total',
+            '$index / $total',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.inkSecondary),
+            style: const TextStyle(color: AppColors.inkSecondary, fontSize: 13),
           ),
+          const SizedBox(height: 6),
+          _ProgressBar(fraction: total == 0 ? 0 : index / total),
           const SizedBox(height: 24),
           Stack(
             children: [
@@ -227,20 +274,90 @@ class _QuestionView extends StatelessWidget {
                 onTap: () => onSelect(i),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                   decoration: BoxDecoration(
                     color: _backgroundFor(i),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _borderFor(i)),
+                    border: Border.all(color: _borderFor(i), width: answered && i == selectedIndex ? 2 : 1),
+                    boxShadow: answered
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: AppColors.inkPrimary.withValues(alpha: 0.05),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                   ),
-                  child: Text(
-                    question.options[i],
-                    style: const TextStyle(fontSize: 16, color: AppColors.inkPrimary),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.paperBackground,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.borderLine),
+                        ),
+                        child: Text(
+                          '${i + 1}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.inkSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          question.options[i],
+                          style: const TextStyle(fontSize: 16, color: AppColors.inkPrimary),
+                        ),
+                      ),
+                      if (answered && i == question.correctIndex)
+                        const Icon(
+                          CupertinoIcons.check_mark_circled_solid,
+                          color: AppColors.successGreen,
+                          size: 22,
+                        ),
+                      if (answered && i == selectedIndex && i != question.correctIndex)
+                        const Icon(
+                          CupertinoIcons.xmark_circle_fill,
+                          color: AppColors.errorRed,
+                          size: 22,
+                        ),
+                    ],
                   ),
                 ),
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// A simple Cupertino-friendly progress bar — Flutter's
+/// LinearProgressIndicator is Material-only.
+class _ProgressBar extends StatelessWidget {
+  const _ProgressBar({required this.fraction});
+
+  final double fraction;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        height: 8,
+        color: AppColors.borderLine,
+        child: FractionallySizedBox(
+          alignment: Alignment.centerLeft,
+          widthFactor: fraction.clamp(0, 1),
+          child: Container(color: AppColors.hankoRed),
+        ),
       ),
     );
   }

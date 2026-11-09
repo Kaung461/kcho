@@ -164,31 +164,58 @@ class _DiaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            'あなたの文章',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.inkSecondary),
+          ),
+          const SizedBox(height: 4),
           Text(
             entry.text,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               color: AppColors.inkSecondary,
-              decoration: TextDecoration.lineThrough,
+              decoration: wasCorrected ? TextDecoration.lineThrough : null,
               decorationColor: AppColors.inkSecondary,
             ),
           ),
           if (wasCorrected) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 14),
+            const Text(
+              '添削後',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.successGreen),
+            ),
+            const SizedBox(height: 4),
             Text(
               entry.corrected,
               style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
                 color: AppColors.inkPrimary,
               ),
             ),
           ],
           if (entry.feedback.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              entry.feedback,
-              style: const TextStyle(fontSize: 14, color: AppColors.hankoRed),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.paperBackground,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(CupertinoIcons.lightbulb, size: 18, color: AppColors.hankoRed),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      entry.feedback,
+                      style: const TextStyle(fontSize: 14, color: AppColors.inkPrimary, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ],
