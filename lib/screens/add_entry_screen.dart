@@ -8,10 +8,19 @@ import '../widgets/type_segmented_control.dart';
 
 /// Add a new entry, or edit / delete an existing one when [existing] is given.
 class AddEntryScreen extends StatefulWidget {
-  const AddEntryScreen({this.existing, this.initialType = EntryType.tango, super.key});
+  const AddEntryScreen({
+    this.existing,
+    this.initialType = EntryType.tango,
+    this.initialTerm,
+    super.key,
+  });
 
   final Entry? existing;
   final EntryType initialType;
+
+  /// Pre-fills the term field — used when jumping here from a word selected
+  /// while reading (see ReadingDetailScreen).
+  final String? initialTerm;
 
   @override
   State<AddEntryScreen> createState() => _AddEntryScreenState();
@@ -33,7 +42,7 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
     super.initState();
     final e = widget.existing;
     _type = e?.type ?? widget.initialType;
-    _term = TextEditingController(text: e?.term ?? '');
+    _term = TextEditingController(text: e?.term ?? widget.initialTerm ?? '');
     _reading = TextEditingController(text: e?.reading ?? '');
     _meaning = TextEditingController(text: e?.meaningMy ?? '');
     _example = TextEditingController(text: e?.exampleSentence ?? '');

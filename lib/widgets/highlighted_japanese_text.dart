@@ -1,4 +1,7 @@
 import 'package:flutter/cupertino.dart';
+// SelectableText / AdaptiveTextSelectionToolbar only exist in Material;
+// prefixed to avoid clashing with this Cupertino-only app's other widgets.
+import 'package:flutter/material.dart' as material;
 
 import '../theme/app_colors.dart';
 
@@ -30,19 +33,53 @@ const List<String> _connectors = [
 
 /// Renders [text] with known connector words (しかし、つまり、そのため…)
 /// highlighted, so the logical structure of a passage is easier to follow.
+///
+/// The text is selectable; when [onAddToVocabulary] is given, selecting any
+/// text adds a "単語帳に追加" action to the selection menu, alongside the
+/// usual copy/select-all — the shortcut for "saw an unknown word while
+/// reading, want to look it up and remember it later" (see ReadingDetail,
+/// which wires this to AddEntryScreen's AI auto-fill).
 class HighlightedJapaneseText extends StatelessWidget {
   const HighlightedJapaneseText({
     required this.text,
     this.style = const TextStyle(fontSize: 17, height: 1.7, color: AppColors.inkPrimary),
+    this.onAddToVocabulary,
     super.key,
   });
 
   final String text;
   final TextStyle style;
+  final ValueChanged<String>? onAddToVocabulary;
 
   @override
   Widget build(BuildContext context) {
-    return Text.rich(TextSpan(children: _buildSpans()), style: style);
+    return material.SelectableText.rich(
+      TextSpan(children: _buildSpans()),
+      style: style,
+      contextMenuBuilder: onAddToVocabulary == null
+          ? null
+          : (context, editableTextState) {
+              final value = editableTextState.textEditingValue;
+              final selected = value.selection.textInside(value.text).trim();
+              final buttonItems = editableTextState.contextMenuButtonItems.toList();
+              if (selected.isNotEmpty) {
+                buttonItems.insert(
+                  0,
+                  ContextMenuButtonItem(
+                    label: '単語帳に追加',
+                    onPressed: () {
+                      editableTextState.hideToolbar();
+                      onAddToVocabulary!(selected);
+                    },
+                  ),
+                );
+              }
+              return material.AdaptiveTextSelectionToolbar.buttonItems(
+                anchors: editableTextState.contextMenuAnchors,
+                buttonItems: buttonItems,
+              );
+            },
+    );
   }
 
   List<TextSpan> _buildSpans() {
