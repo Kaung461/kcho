@@ -22665,7 +22665,7 @@ z7(a,b){var s=0,r=A.C(t.N),q,p,o,n,m,l,k,j,i,h
 var $async$z7=A.w(function(c,d){if(c===1)return A.z(d,r)
 for(;;)switch(s){case 0:k=A.fW("https://api.groq.com/openai/v1/chat/completions",0,null)
 j=t.N
-i=A.as(["Authorization","Bearer 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","Content-Type","application/json"],j,j)
+i=A.as(["Authorization","Bearer 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","Content-Type","application/json"],j,j)
 h=A.o(j,t.K)
 h.l(0,"model","openai/gpt-oss-20b")
 h.l(0,"response_format",A.as(["type","json_object"],j,j))
