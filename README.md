@@ -42,7 +42,7 @@ Every `git push` to `main` triggers [`.github/workflows/deploy.yml`](.github/wor
 which builds the web release and publishes it to the `gh-pages` branch automatically —
 no manual deploy step needed.
 
-Live URL: **https://kd1453467-debug.github.io/kcho/**
+Live URL: **https://kaung461.github.io/kcho/**
 
 One-time setup on GitHub (not something a workflow file can do): go to
 **Settings → Pages** on the repo and set the source to the `gh-pages` branch
