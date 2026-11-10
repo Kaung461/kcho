@@ -1,11 +1,11 @@
 {
-    "name": "k_cho",
-    "short_name": "k_cho",
+    "name": "K帳",
+    "short_name": "K帳",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F5EFE1",
+    "theme_color": "#F5EFE1",
+    "description": "JLPTの単語・文法・読解・作文を学ぶアプリ",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
