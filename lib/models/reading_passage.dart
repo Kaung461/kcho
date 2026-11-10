@@ -139,6 +139,32 @@ class ReadingPassage extends HiveObject {
   String passage;
   List<ReadingQuestion> questions;
   final DateTime createdAt;
+
+  /// Used by [SyncService] to write this passage to Firestore.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'level': level,
+        'type': type.name,
+        'passage': passage,
+        'questions': questions.map((q) => q.toJson()).toList(),
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  /// Inverse of [toJson] — used by [SyncService] to rebuild a passage read
+  /// back from Firestore.
+  factory ReadingPassage.fromJson(Map<String, dynamic> json) => ReadingPassage(
+        id: json['id'] as String,
+        level: json['level'] as String,
+        type: ReadingType.values.firstWhere(
+          (t) => t.name == json['type'] as String,
+          orElse: () => ReadingType.shortPassage,
+        ),
+        passage: json['passage'] as String,
+        questions: (json['questions'] as List<dynamic>)
+            .map((e) => ReadingQuestion.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
 }
 
 /// Hand-written Hive adapter (keeps the project free of build_runner / codegen).

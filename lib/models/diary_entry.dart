@@ -27,6 +27,25 @@ class DiaryEntry extends HiveObject {
   final String feedback;
 
   final DateTime createdAt;
+
+  /// Used by [SyncService] to write this entry to Firestore.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'text': text,
+        'corrected': corrected,
+        'feedback': feedback,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  /// Inverse of [toJson] — used by [SyncService] to rebuild an entry read
+  /// back from Firestore.
+  factory DiaryEntry.fromJson(Map<String, dynamic> json) => DiaryEntry(
+        id: json['id'] as String,
+        text: json['text'] as String,
+        corrected: json['corrected'] as String,
+        feedback: json['feedback'] as String,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
 }
 
 /// Hand-written Hive adapter (keeps the project free of build_runner / codegen).

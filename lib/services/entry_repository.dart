@@ -37,6 +37,7 @@ class EntryRepository {
     required String exampleSentence,
     String? reading,
   }) async {
+    final now = DateTime.now();
     final entry = Entry(
       id: _uuid.v4(),
       type: type,
@@ -44,13 +45,19 @@ class EntryRepository {
       reading: reading?.trim().isEmpty ?? true ? null : reading!.trim(),
       meaningMy: meaningMy.trim(),
       exampleSentence: exampleSentence.trim(),
-      createdAt: DateTime.now(),
+      createdAt: now,
+      updatedAt: now,
     );
     await _box.put(entry.id, entry);
     return entry;
   }
 
-  Future<void> save(Entry entry) => _box.put(entry.id, entry);
+  /// Stamps [Entry.updatedAt] so [SyncService] can tell which device's copy
+  /// of an entry is newer when merging.
+  Future<void> save(Entry entry) {
+    entry.updatedAt = DateTime.now();
+    return _box.put(entry.id, entry);
+  }
 
   Future<void> delete(Entry entry) => _box.delete(entry.id);
 

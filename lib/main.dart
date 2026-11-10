@@ -15,6 +15,7 @@ import 'services/diary_repository.dart';
 import 'services/entry_repository.dart';
 import 'services/reading_repository.dart';
 import 'services/study_log_service.dart';
+import 'services/sync_service.dart';
 import 'theme/app_colors.dart';
 
 Future<void> main() async {
@@ -36,6 +37,13 @@ Future<void> main() async {
   final readingRepository = ReadingRepository(readingBox);
   final diaryRepository = DiaryRepository(diaryBox);
   final studyLog = StudyLogService(studyLogBox);
+
+  SyncService(
+    entryBox: box,
+    readingBox: readingBox,
+    diaryBox: diaryBox,
+    studyLogBox: studyLogBox,
+  ).start();
 
   runApp(
     KchoApp(

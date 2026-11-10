@@ -21,7 +21,9 @@ class Entry extends HiveObject {
     this.interval = 0,
     this.repetitions = 0,
     DateTime? nextReviewDate,
-  }) : nextReviewDate = nextReviewDate ?? DateTime.now();
+    DateTime? updatedAt,
+  })  : nextReviewDate = nextReviewDate ?? DateTime.now(),
+        updatedAt = updatedAt ?? createdAt;
 
   /// Stable UUID, also used as the Hive key.
   final String id;
@@ -63,6 +65,11 @@ class Entry extends HiveObject {
   /// entries, so they're immediately eligible for their first quiz.
   DateTime nextReviewDate;
 
+  /// Last local modification time — set by [EntryRepository], not by
+  /// callers. Used only to break ties when [SyncService] merges the same
+  /// entry id edited on two different devices (last write wins).
+  DateTime updatedAt;
+
   bool get isTango => type == EntryType.tango;
 
   /// Mastered = answered correctly at least 3 times with no wrong answers.
@@ -83,7 +90,8 @@ class Entry extends HiveObject {
     lastReviewed = DateTime.now();
   }
 
-  /// Plain-data representation used by Settings' "export data" feature.
+  /// Plain-data representation used by Settings' "export data" feature and
+  /// by [SyncService] to write this entry to Firestore.
   Map<String, dynamic> toJson() => {
         'id': id,
         'type': type.name,
@@ -99,7 +107,32 @@ class Entry extends HiveObject {
         'interval': interval,
         'repetitions': repetitions,
         'nextReviewDate': nextReviewDate.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
       };
+
+  /// Inverse of [toJson] — used by [SyncService] to rebuild an [Entry] read
+  /// back from Firestore.
+  factory Entry.fromJson(Map<String, dynamic> json) => Entry(
+        id: json['id'] as String,
+        type: EntryType.values.byName(json['type'] as String),
+        term: json['term'] as String,
+        reading: json['reading'] as String?,
+        meaningMy: json['meaningMy'] as String,
+        exampleSentence: json['exampleSentence'] as String,
+        correctCount: json['correctCount'] as int? ?? 0,
+        wrongCount: json['wrongCount'] as int? ?? 0,
+        lastReviewed:
+            json['lastReviewed'] == null ? null : DateTime.parse(json['lastReviewed'] as String),
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        easeFactor: (json['easeFactor'] as num?)?.toDouble() ?? 2.5,
+        interval: json['interval'] as int? ?? 0,
+        repetitions: json['repetitions'] as int? ?? 0,
+        nextReviewDate: json['nextReviewDate'] == null
+            ? null
+            : DateTime.parse(json['nextReviewDate'] as String),
+        updatedAt:
+            json['updatedAt'] == null ? null : DateTime.parse(json['updatedAt'] as String),
+      );
 }
 
 /// Hand-written Hive adapter (keeps the project free of build_runner / codegen).
@@ -131,13 +164,16 @@ class EntryAdapter extends TypeAdapter<Entry> {
       interval: fields[11] as int? ?? 0,
       repetitions: fields[12] as int? ?? 0,
       nextReviewDate: fields[13] as DateTime?,
+      // Field 14 is absent on records written before sync was added —
+      // fall back to createdAt, same as the Entry constructor's default.
+      updatedAt: fields[14] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Entry obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -165,7 +201,9 @@ class EntryAdapter extends TypeAdapter<Entry> {
       ..writeByte(12)
       ..write(obj.repetitions)
       ..writeByte(13)
-      ..write(obj.nextReviewDate);
+      ..write(obj.nextReviewDate)
+      ..writeByte(14)
+      ..write(obj.updatedAt);
   }
 
   @override
