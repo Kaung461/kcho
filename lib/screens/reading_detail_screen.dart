@@ -2,12 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 
-import '../models/entry.dart';
 import '../models/reading_passage.dart';
 import '../theme/app_colors.dart';
 import '../widgets/highlighted_japanese_text.dart';
 import '../widgets/speak_button.dart';
-import 'add_entry_screen.dart';
+import '../widgets/word_lookup_sheet.dart';
 
 /// Shows one [ReadingPassage]: a question preview (to practice "read the
 /// questions first"), an exam-style countdown timer, the passage text with
@@ -62,11 +61,10 @@ class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
     return '$m:${s.toString().padLeft(2, '0')}';
   }
 
-  void _addToVocabulary(String term) {
-    Navigator.of(context).push(
-      CupertinoPageRoute<void>(
-        builder: (_) => AddEntryScreen(initialType: EntryType.tango, initialTerm: term),
-      ),
+  void _lookUpWord(String term) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (_) => WordLookupSheet(term: term),
     );
   }
 
@@ -139,7 +137,8 @@ class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
                   ),
                   child: HighlightedJapaneseText(
                     text: widget.passage.passage,
-                    onAddToVocabulary: _addToVocabulary,
+                    onAddToVocabulary: _lookUpWord,
+                    onWordTap: _lookUpWord,
                   ),
                 ),
                 Positioned(
