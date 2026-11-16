@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 
+import '../app_scope.dart';
 import '../theme/app_colors.dart';
 import 'diary_screen.dart';
 import 'home_screen.dart';
@@ -17,6 +18,7 @@ class RootTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CupertinoTabScaffold(
+      controller: AppScope.tabControllerOf(context),
       tabBar: CupertinoTabBar(
         activeColor: AppColors.hankoRed,
         inactiveColor: AppColors.inkSecondary,

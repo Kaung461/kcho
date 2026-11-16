@@ -18,6 +18,8 @@ class EntryRepository {
 
   List<Entry> all() => _box.values.toList(growable: false);
 
+  Entry? get(String id) => _box.get(id);
+
   /// Total number of entries across both types.
   int get totalCount => _box.length;
 

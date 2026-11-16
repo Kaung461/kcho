@@ -1,19 +1,22 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/cupertino.dart';
 
 import 'services/diary_repository.dart';
 import 'services/entry_repository.dart';
+import 'services/quiz_confusion_service.dart';
 import 'services/reading_repository.dart';
 import 'services/study_log_service.dart';
 
 /// Makes the shared [EntryRepository], [ReadingRepository],
-/// [DiaryRepository] and [StudyLogService] available to the whole widget
-/// tree.
+/// [DiaryRepository], [StudyLogService] and [QuizConfusionService]
+/// available to the whole widget tree.
 class AppScope extends InheritedWidget {
   const AppScope({
     required this.repository,
     required this.readingRepository,
     required this.diaryRepository,
     required this.studyLog,
+    required this.quizConfusions,
+    required this.tabController,
     required super.child,
     super.key,
   });
@@ -22,6 +25,11 @@ class AppScope extends InheritedWidget {
   final ReadingRepository readingRepository;
   final DiaryRepository diaryRepository;
   final StudyLogService studyLog;
+  final QuizConfusionService quizConfusions;
+
+  /// Shared with [RootTabs] so other screens (e.g. the quiz completion
+  /// screen's ホームへ button) can switch the bottom tab programmatically.
+  final CupertinoTabController tabController;
 
   static EntryRepository of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
@@ -47,10 +55,24 @@ class AppScope extends InheritedWidget {
     return scope!.studyLog;
   }
 
+  static QuizConfusionService quizConfusionsOf(BuildContext context) {
+    final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
+    assert(scope != null, 'AppScope was not found in the widget tree');
+    return scope!.quizConfusions;
+  }
+
+  static CupertinoTabController tabControllerOf(BuildContext context) {
+    final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
+    assert(scope != null, 'AppScope was not found in the widget tree');
+    return scope!.tabController;
+  }
+
   @override
   bool updateShouldNotify(AppScope oldWidget) =>
       oldWidget.repository != repository ||
       oldWidget.readingRepository != readingRepository ||
       oldWidget.diaryRepository != diaryRepository ||
-      oldWidget.studyLog != studyLog;
+      oldWidget.studyLog != studyLog ||
+      oldWidget.quizConfusions != quizConfusions ||
+      oldWidget.tabController != tabController;
 }

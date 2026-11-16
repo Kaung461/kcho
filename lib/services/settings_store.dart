@@ -9,10 +9,20 @@ class SettingsStore {
   static const _keyReminderMinute = 'reminder_minute';
 
   static const _keyGoalWordCount = 'goal_word_count';
+  static const _keyQuizDifficulty = 'quiz_difficulty';
+  static const _keyQuizSessionSize = 'quiz_session_size';
 
   static const int defaultReminderHour = 20;
   static const int defaultReminderMinute = 0;
   static const int defaultGoalWordCount = 300;
+
+  /// 'easy' | 'normal' | 'hard' — kept as a plain string here so this store
+  /// doesn't need to depend on QuizService's enum; quiz_screen.dart maps
+  /// between the two.
+  static const String defaultQuizDifficulty = 'hard';
+
+  /// '5' | '10' | 'all'.
+  static const String defaultQuizSessionSize = '10';
 
   Future<String> getDisplayName() async {
     final prefs = await SharedPreferences.getInstance();
@@ -57,5 +67,25 @@ class SettingsStore {
   Future<void> setGoalWordCount(int value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_keyGoalWordCount, value);
+  }
+
+  Future<String> getQuizDifficulty() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyQuizDifficulty) ?? defaultQuizDifficulty;
+  }
+
+  Future<void> setQuizDifficulty(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyQuizDifficulty, value);
+  }
+
+  Future<String> getQuizSessionSize() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyQuizSessionSize) ?? defaultQuizSessionSize;
+  }
+
+  Future<void> setQuizSessionSize(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyQuizSessionSize, value);
   }
 }

@@ -13,6 +13,7 @@ import 'screens/root_tabs.dart';
 import 'services/auth_service.dart';
 import 'services/diary_repository.dart';
 import 'services/entry_repository.dart';
+import 'services/quiz_confusion_service.dart';
 import 'services/reading_repository.dart';
 import 'services/study_log_service.dart';
 import 'services/sync_service.dart';
@@ -31,12 +32,15 @@ Future<void> main() async {
   final readingBox = await Hive.openBox<ReadingPassage>(ReadingRepository.boxName);
   final diaryBox = await Hive.openBox<DiaryEntry>(DiaryRepository.boxName);
   final studyLogBox = await Hive.openBox<dynamic>(StudyLogService.boxName);
+  final quizConfusionBox = await Hive.openBox<dynamic>(QuizConfusionService.boxName);
 
   final repository = EntryRepository(box);
   await repository.seedIfEmpty();
   final readingRepository = ReadingRepository(readingBox);
   final diaryRepository = DiaryRepository(diaryBox);
   final studyLog = StudyLogService(studyLogBox);
+  final quizConfusions = QuizConfusionService(quizConfusionBox);
+  final tabController = CupertinoTabController();
 
   SyncService(
     entryBox: box,
@@ -51,6 +55,8 @@ Future<void> main() async {
       readingRepository: readingRepository,
       diaryRepository: diaryRepository,
       studyLog: studyLog,
+      quizConfusions: quizConfusions,
+      tabController: tabController,
     ),
   );
 }
@@ -61,6 +67,8 @@ class KchoApp extends StatelessWidget {
     required this.readingRepository,
     required this.diaryRepository,
     required this.studyLog,
+    required this.quizConfusions,
+    required this.tabController,
     super.key,
   });
 
@@ -68,6 +76,8 @@ class KchoApp extends StatelessWidget {
   final ReadingRepository readingRepository;
   final DiaryRepository diaryRepository;
   final StudyLogService studyLog;
+  final QuizConfusionService quizConfusions;
+  final CupertinoTabController tabController;
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +86,8 @@ class KchoApp extends StatelessWidget {
       readingRepository: readingRepository,
       diaryRepository: diaryRepository,
       studyLog: studyLog,
+      quizConfusions: quizConfusions,
+      tabController: tabController,
       child: const CupertinoApp(
         title: 'K帳',
         debugShowCheckedModeBanner: false,

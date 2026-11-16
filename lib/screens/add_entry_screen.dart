@@ -138,6 +138,7 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
 
   Future<void> _confirmDelete() async {
     final repo = AppScope.of(context);
+    final quizConfusions = AppScope.quizConfusionsOf(context);
     final navigator = Navigator.of(context);
     final shouldDelete = await showCupertinoDialog<bool>(
       context: context,
@@ -159,6 +160,7 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
     );
     if (shouldDelete ?? false) {
       await repo.delete(widget.existing!);
+      await quizConfusions.forgetEntry(widget.existing!.id);
       navigator.pop();
     }
   }
