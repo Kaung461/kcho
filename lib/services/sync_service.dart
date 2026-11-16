@@ -22,6 +22,16 @@ import 'auth_service.dart';
 /// (apply remote -> box.watch fires -> push to cloud -> snapshot fires ->
 /// apply remote -> ...) at the source: a no-op Hive write never fires
 /// `watch()`, so there's nothing left to push back up.
+///
+/// Deletions are soft (a `_deleted` tombstone field on the doc, not an
+/// actual Firestore delete). A device that's offline/closed at the exact
+/// moment another device deletes something would otherwise never learn
+/// about it — a *missing* doc looks identical to "never synced down yet"
+/// to a freshly (re)attached snapshot listener, so a real delete would get
+/// silently re-created from that device's still-present local copy. A
+/// tombstone stays visible to every listener (including one attaching for
+/// the first time long after the delete), so "this id is deleted" is
+/// never confused with "this id hasn't arrived yet".
 class SyncService {
   SyncService({
     required Box<Entry> entryBox,
@@ -93,7 +103,7 @@ class SyncService {
       _entryBox.watch().listen((event) {
         final key = event.key as String;
         if (event.deleted) {
-          col.doc(key).delete().ignore();
+          col.doc(key).set(_tombstone()).ignore();
         } else {
           final entry = _entryBox.get(key);
           if (entry != null) col.doc(key).set(entry.toJson()).ignore();
@@ -108,7 +118,7 @@ class SyncService {
       _readingBox.watch().listen((event) {
         final key = event.key as String;
         if (event.deleted) {
-          col.doc(key).delete().ignore();
+          col.doc(key).set(_tombstone()).ignore();
         } else {
           final passage = _readingBox.get(key);
           if (passage != null) col.doc(key).set(passage.toJson()).ignore();
@@ -123,7 +133,7 @@ class SyncService {
       _diaryBox.watch().listen((event) {
         final key = event.key as String;
         if (event.deleted) {
-          col.doc(key).delete().ignore();
+          col.doc(key).set(_tombstone()).ignore();
         } else {
           final entry = _diaryBox.get(key);
           if (entry != null) col.doc(key).set(entry.toJson()).ignore();
@@ -154,6 +164,10 @@ class SyncService {
           }
           final data = change.doc.data();
           if (data == null) continue;
+          if (data['_deleted'] == true) {
+            if (_entryBox.containsKey(id)) _entryBox.delete(id);
+            continue;
+          }
           final remote = Entry.fromJson(data);
           final local = _entryBox.get(id);
           if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
@@ -174,9 +188,13 @@ class SyncService {
             if (_readingBox.containsKey(id)) _readingBox.delete(id);
             continue;
           }
-          if (_readingBox.containsKey(id)) continue; // immutable once created
           final data = change.doc.data();
           if (data == null) continue;
+          if (data['_deleted'] == true) {
+            if (_readingBox.containsKey(id)) _readingBox.delete(id);
+            continue;
+          }
+          if (_readingBox.containsKey(id)) continue; // immutable once created
           _readingBox.put(id, ReadingPassage.fromJson(data));
         }
       }, onError: (_) {},),
@@ -192,9 +210,13 @@ class SyncService {
             if (_diaryBox.containsKey(id)) _diaryBox.delete(id);
             continue;
           }
-          if (_diaryBox.containsKey(id)) continue; // immutable once created
           final data = change.doc.data();
           if (data == null) continue;
+          if (data['_deleted'] == true) {
+            if (_diaryBox.containsKey(id)) _diaryBox.delete(id);
+            continue;
+          }
+          if (_diaryBox.containsKey(id)) continue; // immutable once created
           _diaryBox.put(id, DiaryEntry.fromJson(data));
         }
       }, onError: (_) {},),
@@ -214,6 +236,11 @@ class SyncService {
       }, onError: (_) {},),
     );
   }
+
+  Map<String, dynamic> _tombstone() => {
+        '_deleted': true,
+        '_deletedAt': DateTime.now().toIso8601String(),
+      };
 
   Map<String, int> _readStudyLog() {
     final raw = _studyLogBox.get(_studyLogMapKey);
@@ -272,6 +299,10 @@ class SyncService {
     final remoteById = {for (final d in remoteDocs.docs) d.id: d.data()};
 
     for (final entry in remoteById.entries) {
+      if (entry.value['_deleted'] == true) {
+        if (_entryBox.containsKey(entry.key)) await _entryBox.delete(entry.key);
+        continue;
+      }
       final remote = Entry.fromJson(entry.value);
       final local = _entryBox.get(entry.key);
       if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
@@ -298,10 +329,17 @@ class SyncService {
     Map<String, dynamic> Function(T) toJson,
   ) async {
     final remoteDocs = await col.get();
+    // Every remote id counts as "already known to the cloud" — including
+    // tombstones, which must NOT be re-pushed from a local copy below.
     final remoteIds = remoteDocs.docs.map((d) => d.id).toSet();
     for (final doc in remoteDocs.docs) {
+      final data = doc.data();
+      if (data['_deleted'] == true) {
+        if (box.containsKey(doc.id)) await box.delete(doc.id);
+        continue;
+      }
       if (!box.containsKey(doc.id)) {
-        await box.put(doc.id, fromJson(doc.data()));
+        await box.put(doc.id, fromJson(data));
       }
     }
     for (final key in box.keys.cast<String>()) {
