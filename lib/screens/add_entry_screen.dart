@@ -34,6 +34,8 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
   late EntryType _type;
 
   bool _isAutoFilling = false;
+  bool _showAiSuggestionNotice = false;
+  bool _autoFillIncomplete = false;
 
   bool get _isEditing => widget.existing != null;
 
@@ -99,16 +101,31 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
       return;
     }
 
-    setState(() => _isAutoFilling = true);
+    setState(() {
+      _isAutoFilling = true;
+      _showAiSuggestionNotice = false;
+      _autoFillIncomplete = false;
+    });
     try {
-      final result = await GroqService.autoFill(type: _type, term: term);
+      final readingHint =
+          _type == EntryType.tango && _reading.text.trim().isNotEmpty ? _reading.text.trim() : null;
+      final result = await GroqService.autoFill(
+        type: _type,
+        term: term,
+        userReadingHint: readingHint,
+      );
       if (!mounted) return;
       setState(() {
+        // A blank field here means it failed validation (see
+        // GroqService._autoFillWord) — leave whatever the user already
+        // typed alone rather than clobbering it with emptiness.
         if (_type == EntryType.tango && (result.reading ?? '').isNotEmpty) {
           _reading.text = result.reading!;
         }
-        _meaning.text = result.meaningMy;
-        _example.text = result.exampleSentence;
+        if (result.meaningMy.isNotEmpty) _meaning.text = result.meaningMy;
+        if (result.exampleSentence.isNotEmpty) _example.text = result.exampleSentence;
+        _showAiSuggestionNotice = true;
+        _autoFillIncomplete = result.incomplete;
       });
     } catch (e) {
       if (!mounted) return;
@@ -226,6 +243,24 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
                       ),
               ),
             ),
+            if (_showAiSuggestionNotice) ...[
+              const Padding(
+                padding: EdgeInsets.only(left: 12, top: 4),
+                child: Text(
+                  'AIの提案（要確認）',
+                  style: TextStyle(color: AppColors.inkSecondary, fontSize: 12),
+                ),
+              ),
+            ],
+            if (_autoFillIncomplete) ...[
+              const Padding(
+                padding: EdgeInsets.only(left: 12, top: 4),
+                child: Text(
+                  '一部うまく補完できませんでした。自分で入力してください。',
+                  style: TextStyle(color: AppColors.errorRed, fontSize: 12),
+                ),
+              ),
+            ],
             if (isTango) ...[
               const SizedBox(height: 16),
               const _FieldLabel('よみかた'),
