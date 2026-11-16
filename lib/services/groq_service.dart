@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/entry.dart';
@@ -39,23 +40,21 @@ class GroqDiaryResult {
   final String feedback;
 }
 
-/// Calls the Groq API (OpenAI-compatible) directly from the app for the AI
-/// features: auto-filling a new entry's fields, and generating JLPT reading
-/// passages.
+/// Calls the AI features (auto-filling a new entry's fields, generating
+/// JLPT reading passages, correcting diary entries) via a small
+/// server-side proxy — see `worker/` — instead of calling Groq directly.
 ///
-/// The API key is baked in at build time via `--dart-define=GROQ_API_KEY=...`
-/// (see the GitHub Actions workflow for the web build) — never written to a
-/// file, so it's never committed to this public repo. Calling Groq straight
-/// from the client still means the key ships inside the built app/bundle —
-/// acceptable for a free-tier key on a small prototype, but it should move
-/// behind a backend proxy before this has real users, so the key can't be
-/// extracted and abused.
+/// The real Groq API key lives only in that proxy, as a Cloudflare Worker
+/// secret. It never ships inside this app's build. [_proxyUrl] is baked in
+/// at build time via `--dart-define=AI_PROXY_URL=...` (see the GitHub
+/// Actions workflow for the web build) and is not a secret — it's just the
+/// proxy's public URL.
 class GroqService {
   GroqService._();
 
   static const String _model = 'openai/gpt-oss-20b';
-  static const String _endpoint = 'https://api.groq.com/openai/v1/chat/completions';
-  static const String _apiKey = String.fromEnvironment('GROQ_API_KEY');
+  static const String _proxyUrl = String.fromEnvironment('AI_PROXY_URL');
+  static const String _endpoint = '$_proxyUrl/chat';
 
   /// Asks Groq to fill in the fields for [term]. Throws on any
   /// network/API/parse failure — callers should surface the error rather
@@ -173,17 +172,21 @@ class GroqService {
     required String prompt,
     String? reasoningEffort,
   }) async {
-    if (_apiKey.isEmpty) {
+    if (_proxyUrl.isEmpty) {
       throw GroqServiceException(
-        'AI機能は現在利用できません（ビルドにAPIキーが設定されていません）。',
+        'AI機能は現在利用できません（ビルドにプロキシのURLが設定されていません）。',
       );
     }
+
+    // Identifies the caller to the proxy for future use (e.g. per-user rate
+    // limiting) — the proxy does not verify this token yet.
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
 
     final response = await http.post(
       Uri.parse(_endpoint),
       headers: {
-        'Authorization': 'Bearer $_apiKey',
         'Content-Type': 'application/json',
+        if (idToken != null) 'Authorization': 'Bearer $idToken',
       },
       body: jsonEncode({
         'model': _model,
@@ -197,7 +200,7 @@ class GroqService {
 
     if (response.statusCode != 200) {
       throw GroqServiceException(
-        'Groq API がエラーを返しました (${response.statusCode})。',
+        'サーバーがエラーを返しました (${response.statusCode})。',
       );
     }
 

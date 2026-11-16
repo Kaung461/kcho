@@ -17,6 +17,11 @@ build/
 # macOS
 .DS_Store
 
+# Cloudflare Workers — wrangler's local cache/account-id state, not project
+# config (that's worker/wrangler.toml, which IS committed).
+worker/.wrangler/
+worker/node_modules/
+
 # Generated platform folders (recreate with `flutter create .`)
 # Remove the lines below if you want to commit them.
 /ios/

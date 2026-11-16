@@ -109,23 +109,30 @@ generating `macos/`, add the client-networking entitlement to **both**
 This has to be redone any time `macos/` is regenerated from scratch, since that
 whole folder is gitignored (see "What's here" above).
 
-## AI features (auto-fill, reading passages)
+## AI features (auto-fill, reading passages, diary correction)
 
-Both call [Groq](https://console.groq.com) directly from the app. There's no
-Settings screen for an API key — the key is baked in at **build time** via
-`--dart-define`, so it's never written to a file or committed to this (public)
-repo:
+These call [Groq](https://console.groq.com) through a small server-side
+proxy — see [`worker/`](worker/) — not directly from the app. The real Groq
+API key lives only in that proxy (a Cloudflare Worker secret); it never
+ships inside this app's build, so it can't be extracted from the public web
+bundle (that's what happened before this was added — see the Worker's
+README for the full story).
+
+The app only needs the proxy's public URL, baked in at **build time** via
+`--dart-define` (not a secret — just where to send requests):
 
 ```sh
-flutter run -d macos --dart-define=GROQ_API_KEY=your_key_here
+flutter run -d macos --dart-define=AI_PROXY_URL=https://your-worker.workers.dev
 ```
 
-Without `--dart-define`, the key compiles in empty and the AI features show
+Without `--dart-define`, this compiles in empty and the AI features show
 "AI機能は現在利用できません" instead of failing silently.
 
-The live web build (GitHub Pages) gets its key from the repo's
-`GROQ_API_KEY` [Actions secret](../../settings/secrets/actions) — see
-[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
+The live web build (GitHub Pages) gets this from the repo's `AI_PROXY_URL`
+[Actions variable](../../settings/variables/actions) (a plain variable, not
+a secret) — see [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
+Deploying/updating the proxy itself is a separate step — see
+[`worker/README.md`](worker/README.md).
 
 ## Data model
 

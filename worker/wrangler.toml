@@ -1,0 +1,7 @@
+name = "kcho-ai-proxy"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+# GROQ_API_KEY is NOT here — it's set as a secret via
+# `wrangler secret put GROQ_API_KEY` (see README.md), which keeps it out of
+# this file and out of git entirely.

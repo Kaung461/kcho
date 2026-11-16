@@ -32,10 +32,10 @@ jobs:
         # support for always serving the latest deploy, which matters more
         # for a frequently-updated demo site than for an offline-capable PWA.
         env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          AI_PROXY_URL: ${{ vars.AI_PROXY_URL }}
         run: |
           flutter build web --release --base-href /kcho/ --pwa-strategy=none \
-            --dart-define=GROQ_API_KEY="$GROQ_API_KEY"
+            --dart-define=AI_PROXY_URL="$AI_PROXY_URL"
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v3
