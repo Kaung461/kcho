@@ -6,10 +6,14 @@ import '../models/diary_entry.dart';
 import '../services/groq_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/more_menu_button.dart';
+import 'conversation_screen.dart';
 
-/// "Mini diary" screen: write a short Japanese sentence, get it corrected
-/// and explained by AI, and review past entries. The output-practice
-/// counterpart to the vocabulary/reading SRS flow elsewhere in the app.
+enum _CompositionMode { correction, conversation }
+
+/// "作文" tab: a segmented control between the original 添削 (correction)
+/// flow and the new 会話 (conversation practice) flow. Both tabs stay
+/// mounted in an [IndexedStack] so switching between them doesn't reset
+/// an in-progress conversation.
 class DiaryScreen extends StatefulWidget {
   const DiaryScreen({super.key});
 
@@ -18,6 +22,87 @@ class DiaryScreen extends StatefulWidget {
 }
 
 class _DiaryScreenState extends State<DiaryScreen> {
+  _CompositionMode _mode = _CompositionMode.correction;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      navigationBar: const CupertinoNavigationBar(
+        transitionBetweenRoutes: false,
+        middle: Text('作文'),
+        trailing: MoreMenuButton(),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: CupertinoSlidingSegmentedControl<_CompositionMode>(
+                groupValue: _mode,
+                thumbColor: AppColors.hankoRed,
+                backgroundColor: AppColors.borderLine.withValues(alpha: 0.5),
+                onValueChanged: (value) {
+                  if (value != null) setState(() => _mode = value);
+                },
+                children: const {
+                  _CompositionMode.correction: _ModeLabel('添削', selected: false),
+                  _CompositionMode.conversation: _ModeLabel('会話', selected: false),
+                },
+              ),
+            ),
+            Expanded(
+              child: IndexedStack(
+                index: _mode.index,
+                children: const [
+                  _CorrectionTab(),
+                  ConversationScreen(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// [CupertinoSlidingSegmentedControl] always renders both labels (the
+/// thumb slides under whichever is selected), so unlike
+/// [TypeSegmentedControl] this doesn't need a real `selected` flag — kept
+/// as a parameter anyway to match that widget's shape in case a future
+/// visual tweak needs it.
+class _ModeLabel extends StatelessWidget {
+  const _ModeLabel(this.text, {required this.selected});
+
+  final String text;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Text(
+        text,
+        style: const TextStyle(
+          inherit: false,
+          color: AppColors.inkPrimary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+/// The original 添削 screen body, unchanged — just extracted out of
+/// [DiaryScreen] so it can sit inside the new segmented-control container.
+class _CorrectionTab extends StatefulWidget {
+  const _CorrectionTab();
+
+  @override
+  State<_CorrectionTab> createState() => _CorrectionTabState();
+}
+
+class _CorrectionTabState extends State<_CorrectionTab> {
   final _controller = TextEditingController();
   bool _submitting = false;
 
@@ -69,71 +154,62 @@ class _DiaryScreenState extends State<DiaryScreen> {
   Widget build(BuildContext context) {
     final repo = AppScope.diaryOf(context);
 
-    return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        transitionBetweenRoutes: false,
-        middle: Text('作文'),
-        trailing: MoreMenuButton(),
-      ),
-      child: SafeArea(
-        child: Stack(
+    return Stack(
+      children: [
+        Column(
           children: [
-            Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: CupertinoTextField(
-                    controller: _controller,
-                    placeholder: '今日のことを日本語で1〜3行、書いてみましょう。',
-                    minLines: 2,
-                    maxLines: 4,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    style: const TextStyle(color: AppColors.inkPrimary, fontSize: 16),
-                    placeholderStyle: const TextStyle(color: AppColors.inkSecondary),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBackground,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.borderLine),
-                    ),
-                  ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: CupertinoTextField(
+                controller: _controller,
+                placeholder: '今日のことを日本語で1〜3行、書いてみましょう。',
+                minLines: 2,
+                maxLines: 4,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                style: const TextStyle(color: AppColors.inkPrimary, fontSize: 16),
+                placeholderStyle: const TextStyle(color: AppColors.inkSecondary),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBackground,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.borderLine),
                 ),
-                Expanded(
-                  child: ValueListenableBuilder<Box<DiaryEntry>>(
-                    valueListenable: repo.listenable(),
-                    builder: (context, _, __) {
-                      final entries = repo.all();
-                      if (entries.isEmpty) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(32),
-                            child: Text(
-                              'まだ書いた文章がありません。\n上に日本語で何か書いてみましょう。',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: AppColors.inkSecondary, fontSize: 15),
-                            ),
-                          ),
-                        );
-                      }
-                      return ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
-                        itemCount: entries.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) => _DiaryCard(entry: entries[index]),
-                      );
-                    },
-                  ),
-                ),
-              ],
+              ),
             ),
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: _SubmitPill(submitting: _submitting, onPressed: _submitting ? null : _submit),
+            Expanded(
+              child: ValueListenableBuilder<Box<DiaryEntry>>(
+                valueListenable: repo.listenable(),
+                builder: (context, _, __) {
+                  final entries = repo.all();
+                  if (entries.isEmpty) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text(
+                          'まだ書いた文章がありません。\n上に日本語で何か書いてみましょう。',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppColors.inkSecondary, fontSize: 15),
+                        ),
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                    itemCount: entries.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) => _DiaryCard(entry: entries[index]),
+                  );
+                },
+              ),
             ),
           ],
         ),
-      ),
+        Positioned(
+          left: 16,
+          right: 16,
+          bottom: 16,
+          child: _SubmitPill(submitting: _submitting, onPressed: _submitting ? null : _submit),
+        ),
+      ],
     );
   }
 }

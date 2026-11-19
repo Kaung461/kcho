@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 
+import '../models/conversation_message.dart';
 import '../models/entry.dart';
 import '../models/reading_passage.dart';
 
@@ -46,6 +47,18 @@ class GroqDiaryResult {
 
   /// Explanation of what was wrong / why, in Myanmar.
   final String feedback;
+}
+
+/// One AI turn in a 会話練習 session.
+class GroqConversationResult {
+  GroqConversationResult({required this.reply, this.feedback});
+
+  /// The AI's reply, in Japanese.
+  final String reply;
+
+  /// A short correction of the user's previous message, or null when
+  /// nothing needed fixing.
+  final String? feedback;
 }
 
 /// Calls the AI features (auto-filling a new entry's fields, generating
@@ -296,16 +309,32 @@ class GroqService {
     );
   }
 
-  /// Shared request/response handling for all AI features: posts [prompt]
-  /// as the sole user message and returns the assistant's raw JSON-string
-  /// content. Throws [GroqServiceException] on any HTTP or shape failure
-  /// (including a missing build-time key); callers still need to
-  /// `jsonDecode` the returned string themselves since each feature expects
-  /// a different JSON shape back.
+  /// Builds the single-system-message-plus-one-user-message shape every
+  /// feature except 会話練習 uses, then delegates to [_post].
   static Future<String> _complete({
     required String prompt,
     String? system,
     String? reasoningEffort,
+  }) {
+    return _post(
+      [
+        if (system != null) {'role': 'system', 'content': system},
+        {'role': 'user', 'content': prompt},
+      ],
+      reasoningEffort: reasoningEffort,
+    );
+  }
+
+  /// Shared request/response handling for all AI features: posts
+  /// [messages] as-is and returns the assistant's raw JSON-string content.
+  /// Throws [GroqServiceException] on any HTTP or shape failure (including
+  /// a missing build-time key); callers still need to `jsonDecode` the
+  /// returned string themselves since each feature expects a different
+  /// JSON shape back.
+  static Future<String> _post(
+    List<Map<String, String>> messages, {
+    String? reasoningEffort,
+    int? maxTokens,
   }) async {
     if (_proxyUrl.isEmpty) {
       throw GroqServiceException(
@@ -330,10 +359,8 @@ class GroqService {
               'model': _model,
               'response_format': {'type': 'json_object'},
               if (reasoningEffort != null) 'reasoning_effort': reasoningEffort,
-              'messages': [
-                if (system != null) {'role': 'system', 'content': system},
-                {'role': 'user', 'content': prompt},
-              ],
+              if (maxTokens != null) 'max_tokens': maxTokens,
+              'messages': messages,
             }),
           )
           .timeout(const Duration(seconds: 30));
@@ -366,6 +393,122 @@ class GroqService {
     } catch (_) {
       throw GroqServiceException('Groq からの応答を解析できませんでした。');
     }
+  }
+
+  static const int _conversationHistoryLimit = 6;
+  static const int _conversationMaxTokens = 300;
+
+  static String _conversationSystemPrompt(List<Entry> targets) {
+    final wordLines = targets.isEmpty
+        ? '（まだ記録された単語がありません。自由に日本語で会話をしてください。）'
+        : targets.map((e) {
+            final reading =
+                e.reading != null && e.reading!.isNotEmpty ? '（${e.reading}）' : '';
+            return '- ${e.term}$reading = ${e.meaningMy}';
+          }).join('\n');
+
+    return '''
+あなたは日本語会話の練習相手です。相手はミャンマー出身の日本語学習者（JLPT N2〜N1を目指しています）です。
+目的: 相手が「今日の単語」を会話の中で自然に使えるように手伝うこと。
+今日の単語:
+$wordLines
+ルール:
+- 返事は短く（1〜3文）。やさしい自然な日本語で話す。
+- 毎回、質問を1つ入れて会話を続ける。
+- 今日の単語のうち、まだ使われていないものを、相手が使いたくなるような質問や話題で誘う。単語を直接教えない。
+- 相手の直前の文に間違い（文法・助詞・不自然な表現）があれば、feedback に短く直した文と理由を書く。なければ feedback は null。直しは最大1つ、やさしい言い方で。
+- 最初の会話は、日常の身近な話題（今日あったこと、週末、学校、仕事探しなど）から始める。
+出力はJSONだけ: {"reply":"","feedback":null}
+''';
+  }
+
+  static final RegExp _containsJapanese = RegExp('[぀-ヿ一-鿿]');
+
+  /// One turn of 会話練習: [targets] steer the system prompt, [history] is
+  /// the conversation so far (only the last [_conversationHistoryLimit]
+  /// messages are actually sent, to keep cost down — the system prompt is
+  /// resent in full every call since the proxy/Groq is stateless).
+  ///
+  /// No `temperature` is sent — same reason as [_autoFillWord]:
+  /// `openai/gpt-oss-20b` rejects that parameter outright.
+  ///
+  /// Retries once on a malformed/invalid response; if the retry also
+  /// fails, throws [GroqServiceException] with a calm, ready-to-show
+  /// message rather than a raw parse error.
+  static Future<GroqConversationResult> conversationReply({
+    required List<Entry> targets,
+    required List<ConversationMessage> history,
+  }) async {
+    final recent = history.length > _conversationHistoryLimit
+        ? history.sublist(history.length - _conversationHistoryLimit)
+        : history;
+    final messages = <Map<String, String>>[
+      {'role': 'system', 'content': _conversationSystemPrompt(targets)},
+      for (final m in recent)
+        {
+          'role': m.role == ConversationRole.user ? 'user' : 'assistant',
+          'content': m.text,
+        },
+    ];
+
+    Future<GroqConversationResult?> callOnce() async {
+      final content = await _post(messages, maxTokens: _conversationMaxTokens);
+      Map<String, dynamic> parsed;
+      try {
+        parsed = jsonDecode(content) as Map<String, dynamic>;
+      } catch (_) {
+        return null;
+      }
+      final reply = parsed['reply'];
+      if (reply is! String) return null;
+      final trimmedReply = reply.trim();
+      if (trimmedReply.isEmpty || !_containsJapanese.hasMatch(trimmedReply)) return null;
+      final feedbackRaw = parsed['feedback'];
+      final feedback =
+          feedbackRaw is String && feedbackRaw.trim().isNotEmpty ? feedbackRaw.trim() : null;
+      return GroqConversationResult(reply: trimmedReply, feedback: feedback);
+    }
+
+    var result = await callOnce();
+    result ??= await callOnce();
+    if (result == null) {
+      throw GroqServiceException('うまく返事ができませんでした。もう一度送ってください。');
+    }
+    return result;
+  }
+
+  /// Translates [japaneseText] to Myanmar for the per-message 「ミャンマー語で」
+  /// action. Returns null on any failure (network, parse, or the result not
+  /// actually containing Myanmar script) — the caller shows a calm
+  /// "うまく訳せませんでした" instead of surfacing the raw error, since this
+  /// is a minor, retryable convenience action, not a primary flow.
+  static Future<String?> translateToMyanmar(String japaneseText) async {
+    final prompt = '次の日本語の文をミャンマー語に訳してください。説明は不要です。\n'
+        '文: 「$japaneseText」\n'
+        '次のJSON形式だけを返してください。\n'
+        '{"translation": "ミャンマー語訳"}';
+
+    String content;
+    try {
+      content = await _post([
+        {'role': 'user', 'content': prompt},
+      ]);
+    } catch (_) {
+      return null;
+    }
+
+    try {
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+      final translation = parsed['translation'];
+      if (translation is String &&
+          translation.trim().isNotEmpty &&
+          _myanmarChar.hasMatch(translation)) {
+        return translation.trim();
+      }
+    } catch (_) {
+      // fall through to null below
+    }
+    return null;
   }
 }
 
